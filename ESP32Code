@@ -1,1 +1,86 @@
+          #include 
+#include 
 
+Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
+
+#define SERVOMIN  150   // Pulse length for 0°
+#define SERVOMAX  600   // Pulse length for 180°
+#define NUM_SERVOS 12   // Total number of servos/channels used
+#define SERVO_TIMEOUT 1000  // milliseconds to hold position
+#define PCA9685_ADDR 0x40   // Default I2C address for PCA9685
+
+int activeChannel = -1;
+unsigned long moveTime = 0;
+
+void setup() {
+  Serial.begin(115200);
+
+  // Set I2C pins for ESP32 (SDA=21, SCL=22)
+  Wire.begin(21, 22);
+  delay(200);
+
+  // Check if PCA9685 is connected
+  Wire.beginTransmission(PCA9685_ADDR);
+  if (Wire.endTransmission() != 0) {
+    Serial.println("❌ ERROR: PCA9685 not detected at address 0x40. Check wiring and power.");
+    while (true) {
+      delay(1000);  // Halt program
+    }
+  }
+
+  // Initialize PCA9685
+  pwm.begin();
+  pwm.setPWMFreq(50); // 50 Hz typical for servos
+  delay(500);
+
+  Serial.println("✅ PCA9685 detected successfully!");
+  Serial.println("Enter:  ");
+  Serial.println("Example: 3 90");
+}
+
+void loop() {
+  // Turn off active servo after timeout
+  if (activeChannel != -1 && millis() - moveTime > SERVO_TIMEOUT) {
+    pwm.setPWM(activeChannel, 0, 0);
+    Serial.print("Timed out servo ");
+    Serial.println(activeChannel);
+    activeChannel = -1;
+  }
+
+  // Process serial input
+  if (Serial.available()) {
+    String input = Serial.readStringUntil('\n');
+    input.trim();
+
+    int spaceIndex = input.indexOf(' ');
+    if (spaceIndex == -1) {
+      Serial.println("Invalid format. Use:  ");
+      return;
+    }
+
+    int channel = input.substring(0, spaceIndex).toInt();
+    int angle = input.substring(spaceIndex + 1).toInt();
+
+    if (channel < 0 || channel >= NUM_SERVOS || angle < 0 || angle > 180) {
+      Serial.println("Invalid channel or angle.");
+      return;
+    }
+
+    // Turn off previous servo if switching channels
+    if (activeChannel != -1 && activeChannel != channel) {
+      pwm.setPWM(activeChannel, 0, 0);
+    }
+
+    int pulse = map(angle, 0, 180, SERVOMIN, SERVOMAX);
+    pwm.setPWM(channel, 0, pulse);
+
+    Serial.print("Set servo ");
+    Serial.print(channel);
+    Serial.print(" to ");
+    Serial.print(angle);
+    Serial.println("°");
+
+    activeChannel = channel;
+    moveTime = millis();
+  }
+}
