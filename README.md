@@ -7,7 +7,9 @@ Robot and controller code for a Wall-E replica robot. For more information about
 
 <br />
 <br />
-
+Go to https://lazy-tech-inc.web.app/Projects/Walle/Walle.html for info on the esp32 version
+<br />
+<br />
 ## 1. Arduino Code (wall-e)
 Main program to control the motors and servos of the robot. Features include:
 1. An animation queue, keeping track of the next servo movements the robot needs to perform.
